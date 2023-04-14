@@ -1,9 +1,12 @@
-# youdao
-有道云笔记签到, 腾讯云函数版
+# 有道云笔记签到(云函数版)
 
-### 步骤
+注意把子模块也一起下载
 
-查看[这里](https://github.com/ICE99125/BiliBili_Checkin.git)
+```bash
+git clone --recursive https://github.com/arcturus-script/youdao.git
+```
+
+直接改 config.py , 入口改为 index.main
 
 ### cookie
 
