@@ -29,6 +29,6 @@ config = {
     "push": {
         # 合并发送消息, 只合并未单独配置 push 的账号
         "type": "pushplus",
-        "key": "069ac93da0744a0093afb858e9b3f02e",
+        "key": "xxx",
     },
 }
