@@ -1,96 +1,37 @@
 import requests as req
+from tools import handler
 
+# 获取 cookie
+LOGIN_URL = "http://note.youdao.com/login/acc/pe/getsess?product=YNOTE"
 
-def handler(fn):
-    def inner(*args, **kwargs):
-        res = fn(*args, **kwargs)
+# 登录奖励
+SYNC_URL = "https://note.youdao.com/yws/api/daupromotion?method=sync"
 
-        msg = [
-            {
-                "h4": {
-                    "content": f"用户名: {res['name']}",
-                },
-            },
-            {
-                "h4": {
-                    "content": f"账号: {res['account']}",
-                },
-            },
-        ]
+# 签到奖励
+CHECKIN_URL = "https://note.youdao.com/yws/mapi/user?method=checkin"
 
-        checkin = res["checkin"]
+# 广告奖励
+AD_URL = "https://note.youdao.com/yws/mapi/user?method=adRandomPrompt"
 
-        if checkin["status"]:
-            msg.append(
-                {
-                    "table": {
-                        "content": [
-                            ("描述", "内容"),
-                            ("登录奖励", f"{checkin['reward']}M"),
-                            ("连续登录", f"{checkin['continuous_days']}天"),
-                            ("总共获得", f"{checkin['total']}M"),
-                            ("签到奖励", f"{checkin['checkin']}M"),
-                            ("签到共计", f"{checkin['checkin_total']}M"),
-                        ]
-                    }
-                }
-            )
-        else:
-            msg.append(
-                {
-                    "txt": {
-                        "content": checkin["msg"],
-                    },
-                }
-            )
-
-        ad = res["ad"]
-        if ad["status"]:
-            msg.append(
-                {
-                    "table": {
-                        "content": [
-                            ("描述", "内容"),
-                            ("广告奖励", f"{ad['ad']}M"),
-                            ("广告总计", f"{ad['ad_space_total']}天"),
-                        ]
-                    }
-                }
-            )
-        else:
-            msg.append(
-                {
-                    "txt": {
-                        "content": ad["msg"],
-                    },
-                }
-            )
-        
-        return msg
-
-    return inner
+# 获取用户信息
+USER_INFO = "https://note.youdao.com/yws/api/self"
 
 
 class Youdao:
-    LOGIN_URL = "http://note.youdao.com/login/acc/pe/getsess?product=YNOTE"  # 获取 cookie
-    SYNC_URL = "https://note.youdao.com/yws/api/daupromotion?method=sync"  # 登录奖励
-    CHECKIN_URL = "https://note.youdao.com/yws/mapi/user?method=checkin"  # 签到奖励
-    AD_URL = "https://note.youdao.com/yws/mapi/user?method=adRandomPrompt"  # 广告奖励
-    USER_INFO = "https://note.youdao.com/yws/api/self"  # 获取用户信息
-
-    def __init__(self, cookie: str) -> None:
-        self.cookies = cookie
-        self.headers = {"Cookie": cookie}
+    def __init__(self, **config) -> None:
+        self.cookies = config.get("cookie")
+        self.headers = {"Cookie": self.cookies}
 
     # 获取 cookie
     def login(self):
         cookie = ""
-        res = req.get(Youdao.LOGIN_URL, headers=self.headers)
+        res = req.get(LOGIN_URL, headers=self.headers)
 
         for key, value in res.cookies.items():
             cookie += f"{key}={value};"
+
         self.headers = {"Cookie": cookie}
-        
+
         print(f"获取到新 cookie: {cookie}")
 
     # 登录/签到
@@ -98,16 +39,13 @@ class Youdao:
         try:
             print("有道云笔记登录...")
             # 登录
-            res = req.request("POST", Youdao.SYNC_URL, headers=self.headers).json()
+            res = req.request("POST", SYNC_URL, headers=self.headers).json()
 
             if "error" not in res:
                 # 签到
                 print("有道云笔记签到...")
-                result = req.request(
-                    "POST",
-                    Youdao.CHECKIN_URL,
-                    headers=self.headers,
-                ).json()
+
+                result = req.request("POST", CHECKIN_URL, headers=self.headers).json()
 
                 return {
                     "status": True,
@@ -127,6 +65,7 @@ class Youdao:
                 }
         except Exception as exp:
             print(f"登录时出现错误, 原因: {exp}")
+
             return {
                 "status": False,
                 "msg": f"出现错误, 原因: {exp}",
@@ -137,8 +76,10 @@ class Youdao:
         ad = 0
         try:
             print("有道云笔记观看广告...")
+
             for _ in range(3):
-                resp = req.request("POST", Youdao.AD_URL, headers=self.headers).json()
+                resp = req.request("POST", AD_URL, headers=self.headers).json()
+
                 ad += resp.get("space")  # 看广告奖励
 
             return {
@@ -149,6 +90,7 @@ class Youdao:
             }
         except Exception as exp:
             print(f"看广告时出现错误, 原因: {exp}")
+
             return {
                 "status": False,
                 "msg": f"看广告时出现错误, 原因: {exp}",
@@ -159,7 +101,10 @@ class Youdao:
         self.login()
         self.get_user_name()
 
-        result = {"account": self.account, "name": self.name}
+        result = {
+            "account": self.account,
+            "name": self.name,
+        }
 
         checkin = self.checkin()
         result.update({"checkin": checkin})
@@ -173,13 +118,16 @@ class Youdao:
     def get_user_name(self):
         try:
             params = {"method": "get"}
-            res = req.get(Youdao.USER_INFO, headers=self.headers, params=params).json()
+
+            res = req.get(USER_INFO, headers=self.headers, params=params).json()
 
             self.name = res["name"]
             self.account = res["userId"]
 
             print(f"获取到用户名: {res['name']}")
+
         except Exception as ex:
             print(f"获取用户信息时出错, 原因: {ex}")
-            self.name = "无"
-            self.account = "无"
+
+            self.name = "Unkown"
+            self.account = "Unkown"
